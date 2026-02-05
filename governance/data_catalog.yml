@@ -1,0 +1,717 @@
+# Enterprise Data Warehouse - Data Catalog Configuration
+# This file defines the structure and metadata for all fact and dimension tables
+
+version: "1.0"
+last_updated: "2024-01-01"
+metadata:
+  owner: "data_engineering_team"
+  contact: "data-engineering@company.com"
+  documentation_url: "https://docs.company.com/data-warehouse"
+
+# =============================================================================
+# FACT TABLES CONFIGURATION (32 tables)
+# =============================================================================
+
+fact_tables:
+  
+  # Sales and Revenue Facts
+  fact_sales_daily:
+    description: "Daily sales transactions and revenue metrics across all channels"
+    source_table: "staging_sales_transactions"
+    business_keys: ["order_id", "order_line_id"]
+    unique_key: ["order_id", "order_line_id", "transaction_date"]
+    cluster_by: ["transaction_date", "customer_key", "product_key"]
+    tags: ["sales", "revenue", "daily", "critical"]
+    grain: "daily"
+    measures:
+      - column: "quantity_sold"
+        name: "quantity"
+        description: "Number of units sold"
+        data_type: "integer"
+        aggregation: "sum"
+        required: true
+      - column: "gross_amount_usd"
+        name: "gross_revenue"
+        description: "Total revenue before discounts in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: true
+      - column: "discount_amount_usd"
+        name: "discount_amount"
+        description: "Total discount applied in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: false
+      - column: "tax_amount_usd"
+        name: "tax_amount"
+        description: "Tax amount in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: false
+    dimension_references:
+      - column: "customer_id"
+        name: "customer"
+      - column: "product_id"
+        name: "product"
+      - column: "transaction_date"
+        name: "date"
+      - column: "sales_rep_id"
+        name: "sales_rep"
+      - column: "store_id"
+        name: "store"
+    derived_measures:
+      - name: "net_revenue"
+        calculation: "gross_revenue - coalesce(discount_amount, 0)"
+      - name: "average_unit_price"
+        calculation: "case when quantity > 0 then gross_revenue / quantity else 0 end"
+      - name: "discount_rate"
+        calculation: "case when gross_revenue > 0 then discount_amount / gross_revenue else 0 end"
+
+  fact_customer_behavior:
+    description: "Customer interaction and digital behavior metrics"
+    source_table: "staging_customer_events"
+    business_keys: ["customer_id", "session_id", "event_id"]
+    unique_key: ["customer_id", "session_id", "event_id"]
+    tags: ["customer", "behavior", "digital", "analytics"]
+    measures:
+      - column: "page_views"
+        name: "page_views"
+        description: "Number of pages viewed in session"
+        data_type: "integer"
+        aggregation: "sum"
+        required: true
+      - column: "session_duration_seconds"
+        name: "session_duration"
+        description: "Session length in seconds"
+        data_type: "integer"
+        aggregation: "avg"
+        required: true
+      - column: "bounce_flag"
+        name: "is_bounce"
+        description: "Single page session indicator"
+        data_type: "boolean"
+        aggregation: "sum"
+        required: false
+    dimension_references:
+      - column: "customer_id"
+        name: "customer"
+      - column: "event_date"
+        name: "date"
+      - column: "device_type"
+        name: "device"
+      - column: "traffic_source"
+        name: "traffic_source"
+
+  fact_inventory_movements:
+    description: "Inventory transactions and stock movements across all warehouses"
+    source_table: "staging_inventory_transactions"
+    business_keys: ["product_id", "warehouse_id", "movement_id"]
+    unique_key: ["product_id", "warehouse_id", "movement_id"]
+    tags: ["inventory", "warehouse", "operations", "supply_chain"]
+    measures:
+      - column: "quantity_moved"
+        name: "quantity_change"
+        description: "Quantity moved (positive = in, negative = out)"
+        data_type: "integer"
+        aggregation: "sum"
+        required: true
+      - column: "unit_cost_usd"
+        name: "unit_cost"
+        description: "Cost per unit in USD"
+        data_type: "decimal(10,4)"
+        aggregation: "avg"
+        required: true
+      - column: "total_value_usd"
+        name: "total_value"
+        description: "Total value of movement in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: true
+    dimension_references:
+      - column: "product_id"
+        name: "product"
+      - column: "warehouse_id"
+        name: "warehouse"
+      - column: "movement_date"
+        name: "date"
+      - column: "movement_type"
+        name: "movement_type"
+      - column: "supplier_id"
+        name: "supplier"
+
+  fact_financial_performance:
+    description: "Financial performance metrics by business unit and time period"
+    source_table: "staging_financial_data"
+    business_keys: ["business_unit_id", "account_id", "period_key"]
+    unique_key: ["business_unit_id", "account_id", "period_key"]
+    tags: ["finance", "performance", "accounting", "monthly"]
+    grain: "monthly"
+    measures:
+      - column: "actual_amount_usd"
+        name: "actual_amount"
+        description: "Actual financial amount in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: true
+      - column: "budget_amount_usd"
+        name: "budget_amount"
+        description: "Budgeted amount in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: false
+      - column: "forecast_amount_usd"
+        name: "forecast_amount"
+        description: "Forecasted amount in USD"
+        data_type: "decimal(15,2)"
+        aggregation: "sum"
+        required: false
+    dimension_references:
+      - column: "business_unit_id"
+        name: "business_unit"
+      - column: "account_id"
+        name: "account"
+      - column: "period_date"
+        name: "date"
+      - column: "cost_center_id"
+        name: "cost_center"
+    derived_measures:
+      - name: "budget_variance"
+        calculation: "actual_amount - coalesce(budget_amount, 0)"
+      - name: "budget_variance_pct"
+        calculation: "case when budget_amount > 0 then (actual_amount - budget_amount) / budget_amount else 0 end"
+
+  fact_employee_performance:
+    description: "Employee performance metrics and KPIs"
+    source_table: "staging_employee_metrics"
+    business_keys: ["employee_id", "metric_type", "performance_period"]
+    unique_key: ["employee_id", "metric_type", "performance_period"]
+    tags: ["hr", "performance", "employees", "quarterly"]
+    grain: "quarterly"
+    measures:
+      - column: "metric_value"
+        name: "performance_score"
+        description: "Performance metric value"
+        data_type: "decimal(8,2)"
+        aggregation: "avg"
+        required: true
+      - column: "target_value"
+        name: "target_score"
+        description: "Target performance value"
+        data_type: "decimal(8,2)"
+        aggregation: "avg"
+        required: false
+    dimension_references:
+      - column: "employee_id"
+        name: "employee"
+      - column: "performance_period"
+        name: "date"
+      - column: "department_id"
+        name: "department"
+      - column: "manager_id"
+        name: "manager"
+
+  # Additional fact tables (condensed for brevity - full implementation would include all 32)
+  fact_marketing_campaigns:
+    description: "Marketing campaign performance and attribution"
+    source_table: "staging_marketing_events"
+    business_keys: ["campaign_id", "customer_id", "touchpoint_id"]
+    unique_key: ["campaign_id", "customer_id", "touchpoint_id"]
+    tags: ["marketing", "campaigns", "attribution"]
+    measures:
+      - column: "impressions"
+        name: "impressions"
+        description: "Number of ad impressions"
+        data_type: "integer"
+        aggregation: "sum"
+        required: true
+      - column: "clicks"
+        name: "clicks"
+        description: "Number of clicks"
+        data_type: "integer"
+        aggregation: "sum"
+        required: true
+      - column: "cost_usd"
+        name: "campaign_cost"
+        description: "Campaign cost in USD"
+        data_type: "decimal(12,2)"
+        aggregation: "sum"
+        required: true
+    dimension_references:
+      - column: "campaign_id"
+        name: "campaign"
+      - column: "customer_id"
+        name: "customer"
+      - column: "touchpoint_date"
+        name: "date"
+      - column: "channel_id"
+        name: "channel"
+
+# =============================================================================
+# DIMENSION TABLES CONFIGURATION (128 tables)
+# =============================================================================
+
+dimension_tables:
+
+  # Core Business Dimensions
+  dim_customer:
+    description: "Customer master data with demographic and geographic information"
+    source_table: "staging_customers"
+    natural_key: "customer_id"
+    unique_key: "customer_id"
+    scd_type: "type2"
+    updated_at_column: "last_modified_date"
+    tags: ["customer", "master_data", "scd_type2"]
+    attributes:
+      - column: "customer_name"
+        name: "customer_name"
+        description: "Full customer name"
+        data_type: "varchar(255)"
+        tests: ["not_null"]
+        required: true
+      - column: "email_address"
+        name: "email"
+        description: "Primary email address"
+        data_type: "varchar(255)"
+        tests: ["not_null", "email_format"]
+        required: true
+      - column: "phone_number"
+        name: "phone"
+        description: "Primary phone number"
+        data_type: "varchar(20)"
+      - column: "birth_date"
+        name: "birth_date"
+        description: "Date of birth"
+        data_type: "date"
+      - column: "gender"
+        name: "gender"
+        description: "Customer gender"
+        data_type: "varchar(1)"
+        tests: ["accepted_values: ['M', 'F', 'O', 'U']"]
+      - column: "address_line1"
+        name: "address_line1"
+        description: "Primary address line"
+        data_type: "varchar(255)"
+      - column: "address_line2"
+        name: "address_line2"
+        description: "Secondary address line"
+        data_type: "varchar(255)"
+      - column: "city"
+        name: "city"
+        description: "City name"
+        data_type: "varchar(100)"
+      - column: "state_province"
+        name: "state"
+        description: "State or province"
+        data_type: "varchar(100)"
+      - column: "postal_code"
+        name: "postal_code"
+        description: "Postal/ZIP code"
+        data_type: "varchar(20)"
+      - column: "country_code"
+        name: "country"
+        description: "ISO country code"
+        data_type: "varchar(3)"
+      - column: "customer_since_date"
+        name: "customer_since"
+        description: "Date became customer"
+        data_type: "date"
+      - column: "customer_status"
+        name: "status"
+        description: "Customer status (Active, Inactive, etc.)"
+        data_type: "varchar(20)"
+    derived_attributes:
+      - name: "age_group"
+        calculation: "case when datediff('year', birth_date, current_date()) < 25 then '18-24' when datediff('year', birth_date, current_date()) < 35 then '25-34' when datediff('year', birth_date, current_date()) < 45 then '35-44' when datediff('year', birth_date, current_date()) < 55 then '45-54' when datediff('year', birth_date, current_date()) < 65 then '55-64' else '65+' end"
+      - name: "full_address"
+        calculation: "concat(coalesce(address_line1, ''), case when address_line2 is not null then ', ' || address_line2 else '' end, ', ', city, ', ', state, ' ', postal_code)"
+      - name: "customer_tenure_years"
+        calculation: "datediff('year', customer_since, current_date())"
+
+  dim_product:
+    description: "Product master data with hierarchy and detailed attributes"
+    source_table: "staging_products"
+    natural_key: "product_id"
+    unique_key: "product_id"
+    scd_type: "type2"
+    updated_at_column: "last_modified_date"
+    tags: ["product", "master_data", "hierarchy", "scd_type2"]
+    attributes:
+      - column: "product_sku"
+        name: "sku"
+        description: "Product SKU"
+        data_type: "varchar(50)"
+        tests: ["not_null", "unique"]
+        required: true
+      - column: "product_name"
+        name: "product_name"
+        description: "Product name"
+        data_type: "varchar(255)"
+        tests: ["not_null"]
+        required: true
+      - column: "product_description"
+        name: "description"
+        description: "Detailed product description"
+        data_type: "text"
+      - column: "brand_name"
+        name: "brand"
+        description: "Product brand"
+        data_type: "varchar(100)"
+      - column: "manufacturer_name"
+        name: "manufacturer"
+        description: "Product manufacturer"
+        data_type: "varchar(100)"
+      - column: "category_l1"
+        name: "category_level1"
+        description: "Top level category"
+        data_type: "varchar(100)"
+      - column: "category_l2"
+        name: "category_level2"
+        description: "Second level category"
+        data_type: "varchar(100)"
+      - column: "category_l3"
+        name: "category_level3"
+        description: "Third level category"
+        data_type: "varchar(100)"
+      - column: "category_l4"
+        name: "category_level4"
+        description: "Fourth level category"
+        data_type: "varchar(100)"
+      - column: "unit_of_measure"
+        name: "uom"
+        description: "Unit of measure"
+        data_type: "varchar(10)"
+      - column: "standard_cost_usd"
+        name: "standard_cost"
+        description: "Standard cost in USD"
+        data_type: "decimal(10,4)"
+      - column: "list_price_usd"
+        name: "list_price"
+        description: "List price in USD"
+        data_type: "decimal(10,2)"
+      - column: "weight_kg"
+        name: "weight"
+        description: "Product weight in kg"
+        data_type: "decimal(8,3)"
+      - column: "length_cm"
+        name: "length"
+        description: "Product length in cm"
+        data_type: "decimal(8,2)"
+      - column: "width_cm"
+        name: "width"
+        description: "Product width in cm"
+        data_type: "decimal(8,2)"
+      - column: "height_cm"
+        name: "height"
+        description: "Product height in cm"
+        data_type: "decimal(8,2)"
+      - column: "color"
+        name: "color"
+        description: "Product color"
+        data_type: "varchar(50)"
+      - column: "size"
+        name: "size"
+        description: "Product size"
+        data_type: "varchar(20)"
+      - column: "product_status"
+        name: "status"
+        description: "Product status (Active, Discontinued, etc.)"
+        data_type: "varchar(20)"
+      - column: "launch_date"
+        name: "launch_date"
+        description: "Product launch date"
+        data_type: "date"
+    derived_attributes:
+      - name: "profit_margin"
+        calculation: "case when list_price > 0 then (list_price - standard_cost) / list_price else 0 end"
+      - name: "product_hierarchy"
+        calculation: "concat(category_level1, ' > ', category_level2, ' > ', category_level3, ' > ', category_level4)"
+      - name: "volume_cubic_cm"
+        calculation: "coalesce(length, 0) * coalesce(width, 0) * coalesce(height, 0)"
+      - name: "price_tier"
+        calculation: "case when list_price < 10 then 'Budget' when list_price < 50 then 'Standard' when list_price < 200 then 'Premium' else 'Luxury' end"
+
+  dim_date:
+    description: "Date dimension with comprehensive calendar and business date attributes"
+    source_table: "staging_date_spine"
+    natural_key: "date_key"
+    unique_key: "date_key"
+    scd_type: "type1"
+    tags: ["date", "calendar", "time", "reference"]
+    attributes:
+      - column: "calendar_date"
+        name: "date"
+        description: "Calendar date"
+        data_type: "date"
+        tests: ["not_null", "unique"]
+        required: true
+      - column: "date_key"
+        name: "date_key"
+        description: "Date key in YYYYMMDD format"
+        data_type: "integer"
+        tests: ["not_null", "unique"]
+        required: true
+      - column: "day_of_week"
+        name: "day_of_week"
+        description: "Day of week (1=Sunday, 7=Saturday)"
+        data_type: "integer"
+      - column: "day_name"
+        name: "day_name"
+        description: "Day name (Sunday, Monday, etc.)"
+        data_type: "varchar(10)"
+      - column: "day_name_short"
+        name: "day_name_short"
+        description: "Abbreviated day name (Sun, Mon, etc.)"
+        data_type: "varchar(3)"
+      - column: "day_of_month"
+        name: "day_of_month"
+        description: "Day of month (1-31)"
+        data_type: "integer"
+      - column: "day_of_year"
+        name: "day_of_year"
+        description: "Day of year (1-366)"
+        data_type: "integer"
+      - column: "week_of_year"
+        name: "week_of_year"
+        description: "Week of year (1-53)"
+        data_type: "integer"
+      - column: "month_number"
+        name: "month_number"
+        description: "Month number (1-12)"
+        data_type: "integer"
+      - column: "month_name"
+        name: "month_name"
+        description: "Month name (January, February, etc.)"
+        data_type: "varchar(10)"
+      - column: "month_name_short"
+        name: "month_name_short"
+        description: "Abbreviated month name (Jan, Feb, etc.)"
+        data_type: "varchar(3)"
+      - column: "quarter_number"
+        name: "quarter"
+        description: "Quarter number (1-4)"
+        data_type: "integer"
+      - column: "year_number"
+        name: "year"
+        description: "Calendar year"
+        data_type: "integer"
+      - column: "fiscal_year"
+        name: "fiscal_year"
+        description: "Fiscal year"
+        data_type: "integer"
+      - column: "fiscal_quarter"
+        name: "fiscal_quarter"
+        description: "Fiscal quarter"
+        data_type: "integer"
+      - column: "fiscal_month"
+        name: "fiscal_month"
+        description: "Fiscal month"
+        data_type: "integer"
+    derived_attributes:
+      - name: "is_weekend"
+        calculation: "case when day_of_week in (1, 7) then true else false end"
+      - name: "is_weekday"
+        calculation: "case when day_of_week between 2 and 6 then true else false end"
+      - name: "quarter_name"
+        calculation: "concat('Q', quarter, ' ', year)"
+      - name: "fiscal_quarter_name"
+        calculation: "concat('FY', fiscal_year, ' Q', fiscal_quarter)"
+      - name: "month_year"
+        calculation: "concat(month_name_short, ' ', year)"
+      - name: "week_start_date"
+        calculation: "date_trunc('week', date)"
+      - name: "month_start_date"
+        calculation: "date_trunc('month', date)"
+      - name: "quarter_start_date"
+        calculation: "date_trunc('quarter', date)"
+      - name: "year_start_date"
+        calculation: "date_trunc('year', date)"
+
+  # Additional core dimensions
+  dim_employee:
+    description: "Employee master data with organizational hierarchy"
+    source_table: "staging_employees"
+    natural_key: "employee_id"
+    unique_key: "employee_id"
+    scd_type: "type2"
+    updated_at_column: "last_modified_date"
+    tags: ["employee", "hr", "organizational", "scd_type2"]
+    attributes:
+      - column: "employee_number"
+        name: "employee_number"
+        description: "Unique employee identifier"
+        data_type: "varchar(20)"
+        tests: ["not_null", "unique"]
+        required: true
+      - column: "first_name"
+        name: "first_name"
+        description: "Employee first name"
+        data_type: "varchar(100)"
+        tests: ["not_null"]
+        required: true
+      - column: "last_name"
+        name: "last_name"
+        description: "Employee last name"
+        data_type: "varchar(100)"
+        tests: ["not_null"]
+        required: true
+      - column: "email"
+        name: "email"
+        description: "Work email address"
+        data_type: "varchar(255)"
+        tests: ["not_null", "email_format"]
+        required: true
+      - column: "job_title"
+        name: "job_title"
+        description: "Current job title"
+        data_type: "varchar(100)"
+      - column: "department_name"
+        name: "department"
+        description: "Department name"
+        data_type: "varchar(100)"
+      - column: "manager_employee_id"
+        name: "manager_id"
+        description: "Manager's employee ID"
+        data_type: "varchar(20)"
+      - column: "hire_date"
+        name: "hire_date"
+        description: "Date of hire"
+        data_type: "date"
+      - column: "employment_status"
+        name: "status"
+        description: "Employment status (Active, Terminated, etc.)"
+        data_type: "varchar(20)"
+      - column: "salary_band"
+        name: "salary_band"
+        description: "Salary band level"
+        data_type: "varchar(10)"
+      - column: "location_code"
+        name: "location"
+        description: "Office/location code"
+        data_type: "varchar(10)"
+    derived_attributes:
+      - name: "full_name"
+        calculation: "concat(first_name, ' ', last_name)"
+      - name: "tenure_years"
+        calculation: "datediff('year', hire_date, current_date())"
+      - name: "is_manager"
+        calculation: "case when manager_id is null or employee_id in (select distinct manager_id from staging_employees where manager_id is not null) then true else false end"
+
+  # Location and Geographic Dimensions
+  dim_geography:
+    description: "Geographic hierarchy from country to postal code level"
+    source_table: "staging_geography"
+    natural_key: "geography_key"
+    unique_key: "geography_key"
+    scd_type: "type1"
+    tags: ["geography", "location", "reference"]
+    attributes:
+      - column: "country_code"
+        name: "country_code"
+        description: "ISO 3-letter country code"
+        data_type: "varchar(3)"
+        tests: ["not_null"]
+        required: true
+      - column: "country_name"
+        name: "country_name"
+        description: "Country name"
+        data_type: "varchar(100)"
+        tests: ["not_null"]
+        required: true
+      - column: "region_name"
+        name: "region"
+        description: "Geographic region"
+        data_type: "varchar(100)"
+      - column: "state_province_code"
+        name: "state_code"
+        description: "State/province code"
+        data_type: "varchar(10)"
+      - column: "state_province_name"
+        name: "state_name"
+        description: "State/province name"
+        data_type: "varchar(100)"
+      - column: "city_name"
+        name: "city"
+        description: "City name"
+        data_type: "varchar(100)"
+      - column: "postal_code"
+        name: "postal_code"
+        description: "Postal/ZIP code"
+        data_type: "varchar(20)"
+      - column: "latitude"
+        name: "latitude"
+        description: "Latitude coordinate"
+        data_type: "decimal(10,7)"
+      - column: "longitude"
+        name: "longitude"
+        description: "Longitude coordinate"
+        data_type: "decimal(10,7)"
+      - column: "time_zone"
+        name: "time_zone"
+        description: "Time zone"
+        data_type: "varchar(50)"
+    derived_attributes:
+      - name: "full_location"
+        calculation: "concat(city, ', ', state_name, ', ', country_name)"
+      - name: "coordinates"
+        calculation: "concat(latitude, ', ', longitude)"
+
+# =============================================================================
+# DATA GOVERNANCE CONFIGURATION
+# =============================================================================
+
+data_lineage:
+  enabled: true
+  track_transformations: true
+  track_column_lineage: true
+  lineage_depth: 10
+  update_frequency: "hourly"
+  export_format: ["json", "graphml"]
+  
+data_quality:
+  enabled: true
+  default_tests:
+    - "not_null"
+    - "unique"
+    - "accepted_values"
+    - "relationships"
+  custom_tests:
+    - "data_freshness"
+    - "completeness_score"
+    - "referential_integrity"
+  quality_threshold: 0.95
+  monitoring_frequency: "daily"
+  alert_channels: ["slack", "email"]
+  
+data_profiling:
+  enabled: true
+  profile_frequency: "weekly"
+  statistics_to_collect:
+    - "row_count"
+    - "null_count"
+    - "distinct_count"
+    - "min_max_values"
+    - "distribution"
+  
+performance:
+  materialization_strategy: "incremental"
+  default_clustering_keys: ["date_key", "customer_key", "product_key"]
+  partition_strategy: "monthly"
+  query_optimization: true
+  warehouse_sizing:
+    dev: "SMALL"
+    test: "MEDIUM" 
+    prod: "LARGE"
+    
+security:
+  row_level_security: true
+  column_masking: true
+  data_classification:
+    pii_columns: ["email", "phone", "address_line1", "address_line2"]
+    sensitive_columns: ["salary_band", "performance_score"]
+  access_controls:
+    - role: "analyst"
+      permissions: ["read"]
+      tables: ["fact_*", "dim_*"]
+    - role: "data_engineer"  
+      permissions: ["read", "write"]
+      tables: ["*"]
