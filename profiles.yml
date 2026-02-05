@@ -1,0 +1,41 @@
+enterprise_dw:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') | default('TRANSFORMER', true) }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') | default('DEV_DW', true) }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') | default('COMPUTE_WH', true) }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA') | default('PUBLIC', true) }}"
+      threads: 8
+      client_session_keep_alive: true
+      query_tag: "dbt_development"
+      
+    test:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') | default('TRANSFORMER', true) }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') | default('TEST_DW', true) }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') | default('COMPUTE_WH', true) }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA') | default('PUBLIC', true) }}"
+      threads: 4
+      client_session_keep_alive: true
+      query_tag: "dbt_testing"
+      
+    prod:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') | default('TRANSFORMER', true) }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') | default('PROD_DW', true) }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') | default('COMPUTE_WH', true) }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA') | default('PUBLIC', true) }}"
+      threads: 16
+      client_session_keep_alive: true
+      query_tag: "dbt_production"

@@ -1,0 +1,140 @@
+name: 'enterprise_datawarehouse'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'enterprise_dw'
+
+# These configurations specify where dbt should look for different types of files.
+model-paths: ["models"]
+analysis-paths: ["analysis"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Global variables
+vars:
+  # Data processing parameters
+  start_date: '2020-01-01'
+  end_date: '2024-12-31'
+  
+  # Data quality thresholds
+  completeness_threshold: 0.95
+  uniqueness_threshold: 0.99
+  freshness_threshold_hours: 24
+  
+  # Performance settings
+  large_table_threshold: 1000000
+  enable_incremental: true
+  max_batch_size: 100000
+  
+  # Business rules
+  fiscal_year_start_month: 1
+  default_currency: 'USD'
+  
+  # Data governance
+  enable_lineage_tracking: true
+  enable_quality_monitoring: true
+  enable_performance_logging: true
+
+# Model configurations
+models:
+  enterprise_datawarehouse:
+    +materialized: table
+    +post-hook: "{{ audit_logging() }}"
+    
+    staging:
+      +materialized: view
+      +tags: ["staging"]
+      +docs:
+        node_color: "lightblue"
+      
+    intermediate:
+      +materialized: ephemeral
+      +tags: ["intermediate"]
+      +docs:
+        node_color: "orange"
+      
+    marts:
+      +materialized: table
+      +tags: ["marts"]
+      +docs:
+        node_color: "green"
+      
+      dimensions:
+        +materialized: table
+        +tags: ["dimension", "slowly_changing"]
+        +post-hook: 
+          - "{{ log_dimension_stats() }}"
+          - "{{ update_data_lineage() }}"
+        +docs:
+          node_color: "lightgreen"
+        
+      facts:
+        +materialized: incremental
+        +incremental_strategy: 'merge'
+        +unique_key: ['business_key', 'effective_date']
+        +tags: ["fact", "incremental"]
+        +post-hook:
+          - "{{ log_fact_stats() }}"
+          - "{{ validate_fact_table() }}"
+        +docs:
+          node_color: "darkgreen"
+
+# Snapshot configurations
+snapshots:
+  enterprise_datawarehouse:
+    +target_schema: snapshots
+    +strategy: timestamp
+    +updated_at: updated_at
+    +tags: ["snapshot"]
+
+# Seed configurations
+seeds:
+  enterprise_datawarehouse:
+    +schema: reference_data
+    +quote_columns: false
+    +tags: ["reference", "seed"]
+    
+    lookup_tables:
+      +materialized: table
+      +docs:
+        node_color: "yellow"
+
+# Test configurations
+tests:
+  +store_failures: true
+  +schema: test_failures
+  +severity: warn
+
+# Macro configurations
+dispatch:
+  - macro_namespace: dbt_utils
+    search_order: ['enterprise_datawarehouse', 'dbt_utils']
+
+# Documentation
+docs:
+  +docs:
+    node_color: "blue"
+
+# Hooks
+on-run-start:
+  - "{{ log_run_start() }}"
+  - "{{ create_schema_if_not_exists('analytics') }}"
+  - "{{ create_schema_if_not_exists('staging') }}"
+
+on-run-end:
+  - "{{ log_run_end() }}"
+  - "{{ update_data_catalog() }}"
+  - "{{ send_performance_metrics() }}"
+
+# Query comments
+query-comment:
+  comment: "dbt run: {{ node.name }} | generated at {{ run_started_at }}"
+  append: true

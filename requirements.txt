@@ -1,0 +1,74 @@
+# Core DBT and Data Warehouse Requirements
+dbt-core==1.7.4
+dbt-snowflake==1.7.1
+dbt-postgres==1.7.4
+
+# Data Processing and Utilities
+pandas==2.1.4
+numpy==1.24.3
+pyarrow==14.0.1
+sqlalchemy==2.0.23
+snowflake-connector-python==3.6.0
+snowflake-sqlalchemy==1.5.1
+
+# Airflow for Orchestration
+apache-airflow==2.7.3
+apache-airflow-providers-snowflake==5.1.1
+apache-airflow-providers-dbt-cloud==3.5.1
+
+# Data Quality and Testing
+great-expectations==0.18.8
+pandera==0.17.2
+soda-core[snowflake]==3.3.2
+
+# Configuration and Environment
+python-dotenv==1.0.0
+pyyaml==6.0.1
+click==8.1.7
+jinja2==3.1.2
+
+# Data Profiling and Analysis
+pandas-profiling==3.6.6
+sweetviz==2.3.1
+dataprep==0.4.5
+
+# Logging and Monitoring
+structlog==23.2.0
+rich==13.7.0
+prometheus-client==0.19.0
+
+# Development and Testing
+pytest==7.4.3
+pytest-dbt-adapter==0.9.0
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Documentation
+mkdocs==1.5.3
+mkdocs-material==9.4.8
+mkdocs-mermaid2-plugin==1.1.1
+
+# Visualization and Reporting
+plotly==5.17.0
+matplotlib==3.8.2
+seaborn==0.13.0
+
+# Data Lineage and Catalog
+sqllineage==1.4.8
+datahub-rest-emitter==0.12.1.5
+
+# Security and Encryption
+cryptography==41.0.8
+keyring==24.3.0
+
+# Performance and Optimization
+psutil==5.9.6
+memory-profiler==0.61.0
+
+# Utilities
+requests==2.31.0
+tabulate==0.9.0
+tqdm==4.66.1
+colorama==0.4.6
